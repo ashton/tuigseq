@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Layout, Margin},
     prelude::Stylize,
     style::{Color, Modifier},
-    text::Span,
+    text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
 
@@ -56,9 +56,9 @@ fn main() -> color_eyre::Result<()> {
 
 fn view(model: &mut Model, frame: &mut Frame) {
     let root_layout = Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)]);
-    let content_layout = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]);
+    let content_layout = Layout::vertical([Constraint::Fill(1)]);
     let [menu_area, main_area] = frame.area().layout(&root_layout);
-    let [title_area, blocks_area] = main_area.layout(&content_layout);
+    let [blocks_area] = main_area.layout(&content_layout);
 
     frame.render_widget(
         Block::default().borders(Borders::all()),
@@ -68,20 +68,17 @@ fn view(model: &mut Model, frame: &mut Frame) {
         }),
     );
 
-    // let title_block = Block::default().borders(Borders::all());
-    let text = "Page Title".bold();
-    let size = text.width();
-    let title = Paragraph::new(text)/*.block(title_block)*/;
-    frame.render_widget(
-        title,
-        title_area.centered_horizontally(Constraint::Length(size as u16)),
-    );
+    let content_block = Block::new()
+        .title("Page title".bold())
+        .borders(Borders::all());
 
-    // let content_block = Block::default().borders(Borders::all());
     let items: Vec<ListItem> = model
         .blocks
         .iter()
-        .map(|item| ListItem::new(Span::from(item)))
+        .map(|item| {
+            let line = Line::from(vec!["󰝥".into(), " ".into(), Span::from(item)]);
+            ListItem::new(line)
+        })
         .collect();
 
     let mut list_state = ListState::default().with_selected(Some(model.selected));
@@ -89,7 +86,7 @@ fn view(model: &mut Model, frame: &mut Frame) {
     let list = List::new(items)
         .style(Color::White)
         .highlight_style(Modifier::REVERSED)
-        /*.block(content_block)*/;
+        .block(content_block);
 
     frame.render_stateful_widget(list, blocks_area, &mut list_state);
 }
