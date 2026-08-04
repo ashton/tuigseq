@@ -10,7 +10,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Widget},
 };
-use ratatui_textarea::TextArea;
+use ratatui_textarea::{Input, Key, TextArea};
 use tui_widget_list::{ListBuilder, ListView};
 
 #[allow(clippy::large_enum_variant)]
@@ -173,27 +173,36 @@ fn render_edit_mode(model: &Model, edit_data: &EditData, frame: &mut Frame) {
 }
 
 fn handle_event(model: &Model) -> color_eyre::Result<Option<Message>> {
-    if event::poll(Duration::from_millis(250))?
-        && let Event::Key(key) = event::read()?
-        && key.kind == event::KeyEventKind::Press
-    {
-        return Ok(handle_key(model, key));
+    if event::poll(Duration::from_millis(50))? {
+        return Ok(handle_key(model, event::read()?.into()));
     }
 
     Ok(None)
 }
 
-fn handle_key(model: &Model, key: event::KeyEvent) -> Option<Message> {
+fn handle_key(model: &Model, input: Input) -> Option<Message> {
     match model.mode {
-        Mode::Normal => match key.code {
-            KeyCode::Char('j') => Some(Message::MoveDown),
-            KeyCode::Char('k') => Some(Message::MoveUp),
-            KeyCode::Char('q') => Some(Message::Quit),
-            KeyCode::Char('A') => Some(Message::InsertAtTheEnd),
+        Mode::Normal => match input {
+            Input {
+                key: Key::Char('j'),
+                ..
+            } => Some(Message::MoveDown),
+            Input {
+                key: Key::Char('k'),
+                ..
+            } => Some(Message::MoveUp),
+            Input {
+                key: Key::Char('q'),
+                ..
+            } => Some(Message::Quit),
+            Input {
+                key: Key::Char('A'),
+                ..
+            } => Some(Message::InsertAtTheEnd),
             _ => None,
         },
-        Mode::Editing(_) => match key.code {
-            KeyCode::Esc => Some(Message::StopEditing),
+        Mode::Editing(_) => match input {
+            Input { key: Key::Esc, .. } => Some(Message::StopEditing),
             _ => None,
         },
         Mode::Quit => None,
