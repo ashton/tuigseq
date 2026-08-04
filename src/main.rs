@@ -2,25 +2,41 @@ use std::time::Duration;
 
 use ratatui::{
     Frame,
+    buffer::Buffer,
     crossterm::event::{self, Event, KeyCode},
-    layout::{Constraint, Layout, Margin},
+    layout::{Constraint, Layout, Margin, Rect},
     prelude::Stylize,
-    style::{Color, Modifier},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, Borders, List, ListItem, Widget},
 };
+use ratatui_textarea::TextArea;
+use tui_widget_list::{ListBuilder, ListView};
 
-#[derive(Debug, PartialEq, Eq)]
-enum CursorPosition {
-    Begining,
-    End,
-    Above,
-    Below,
+#[allow(clippy::large_enum_variant)]
+enum ItemWidget<'a> {
+    Text(Line<'a>),
+    Edit(TextArea<'a>),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+impl Widget for ItemWidget<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        match self {
+            ItemWidget::Text(line) => line.render(area, buf),
+            ItemWidget::Edit(textarea) => (&textarea).render(area, buf),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct CursorPosition {
+    line: u16,
+    col: u16,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct EditData {
-    position: CursorPosition,
+    cursor_position: CursorPosition,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -56,7 +72,7 @@ fn main() -> color_eyre::Result<()> {
     };
 
     while model.mode != Mode::Quit {
-        term.draw(|frame| view(&mut model, frame))?;
+        term.draw(|frame| view(&model, frame))?;
         let mut current_msg = handle_event(&model)?;
         while current_msg.is_some() {
             current_msg = update(&mut model, current_msg.unwrap());
@@ -70,7 +86,7 @@ fn main() -> color_eyre::Result<()> {
 fn view(model: &Model, frame: &mut Frame) {
     match model.mode {
         Mode::Normal => render_normal_mode(model, frame),
-        Mode::Editing(_) => render_edit_mode(model, frame),
+        Mode::Editing(edit_data) => render_edit_mode(model, &edit_data, frame),
         Mode::Quit => (),
     }
 }
@@ -102,7 +118,7 @@ fn render_normal_mode(model: &Model, frame: &mut Frame) {
         })
         .collect();
 
-    let mut list_state = ListState::default().with_selected(Some(model.selected));
+    let mut list_state = ratatui::widgets::ListState::default().with_selected(Some(model.selected));
 
     let list = List::new(items)
         .style(Color::White)
@@ -112,7 +128,7 @@ fn render_normal_mode(model: &Model, frame: &mut Frame) {
     frame.render_stateful_widget(list, blocks_area, &mut list_state);
 }
 
-fn render_edit_mode(model: &Model, frame: &mut Frame) {
+fn render_edit_mode(model: &Model, edit_data: &EditData, frame: &mut Frame) {
     let root_layout = Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)]);
     let content_layout = Layout::vertical([Constraint::Fill(1)]);
     let [menu_area, main_area] = frame.area().layout(&root_layout);
@@ -130,23 +146,30 @@ fn render_edit_mode(model: &Model, frame: &mut Frame) {
         .title("Page title".bold())
         .borders(Borders::all());
 
-    let items: Vec<ListItem> = model
-        .blocks
-        .iter()
-        .map(|item| {
-            let line = Line::from(vec!["󰝥".into(), " ".into(), Span::from(item)]);
-            ListItem::new(line)
-        })
-        .collect();
+    let builder = ListBuilder::new(|context| {
+        if context.is_selected {
+            let textarea_block = Block::default().borders(Borders::all());
+            let mut textarea = TextArea::from([model.blocks[context.index].clone()]);
+            textarea.set_cursor_line_style(Style::default());
+            textarea.set_block(textarea_block);
+            textarea.move_cursor(ratatui_textarea::CursorMove::Jump(
+                edit_data.cursor_position.line,
+                edit_data.cursor_position.col,
+            ));
+            return (ItemWidget::Edit(textarea), 3);
+        }
 
-    let mut list_state = ListState::default().with_selected(Some(model.selected));
+        let line = Line::from(vec![
+            "󰝥".into(),
+            " ".into(),
+            Span::from(model.blocks[context.index].clone()),
+        ]);
+        (ItemWidget::Text(line), 1)
+    });
 
-    let list = List::new(items)
-        .style(Color::White)
-        .highlight_style(Modifier::REVERSED)
-        .block(content_block);
-
-    frame.render_stateful_widget(list, blocks_area, &mut list_state);
+    let list_view = ListView::new(builder, model.blocks.len()).block(content_block);
+    let mut list_state = tui_widget_list::ListState::new_with_index(Some(model.selected));
+    frame.render_stateful_widget(list_view, blocks_area, &mut list_state);
 }
 
 fn handle_event(model: &Model) -> color_eyre::Result<Option<Message>> {
@@ -205,7 +228,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
         }
         Message::InsertAtTheEnd => {
             model.mode = Mode::Editing(EditData {
-                position: CursorPosition::End,
+                cursor_position: CursorPosition {
+                    line: 0,
+                    col: model.blocks[model.selected].len() as u16,
+                },
             });
             None
         }
