@@ -7,14 +7,27 @@ use ratatui::{
     prelude::Stylize,
     style::{Color, Modifier},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState},
 };
+
+#[derive(Debug, PartialEq, Eq)]
+enum CursorPosition {
+    Begining,
+    End,
+    Above,
+    Below,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct EditData {
+    position: CursorPosition,
+}
 
 #[derive(Debug, Default, PartialEq, Eq)]
 enum Mode {
     #[default]
     Normal,
-    Insert,
+    Editing(EditData),
     Quit,
 }
 
@@ -22,7 +35,7 @@ enum Mode {
 enum Message {
     MoveUp,
     MoveDown,
-    Insert,
+    InsertAtTheEnd,
     Quit,
 }
 
@@ -31,7 +44,6 @@ struct Model {
     mode: Mode,
     blocks: Vec<String>,
     selected: usize,
-    input_value: String,
 }
 
 fn main() -> color_eyre::Result<()> {
@@ -107,7 +119,7 @@ fn handle_key(key: event::KeyEvent) -> Option<Message> {
         KeyCode::Char('j') => Some(Message::MoveDown),
         KeyCode::Char('k') => Some(Message::MoveUp),
         KeyCode::Char('q') => Some(Message::Quit),
-        KeyCode::Char('i') => Some(Message::Insert),
+        KeyCode::Char('A') => Some(Message::InsertAtTheEnd),
         _ => None,
     }
 }
@@ -138,7 +150,12 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             model.selected += 1;
             None
         }
-        Message::Insert => None,
+        Message::InsertAtTheEnd => {
+            model.mode = Mode::Editing(EditData {
+                position: CursorPosition::End,
+            });
+            None
+        }
     }
 }
 
