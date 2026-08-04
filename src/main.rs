@@ -1,0 +1,174 @@
+use std::time::Duration;
+
+use ratatui::{
+    Frame,
+    crossterm::event::{self, Event, KeyCode},
+    layout::{Constraint, Layout, Margin},
+    prelude::Stylize,
+    style::{Color, Modifier},
+    text::Span,
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+};
+
+#[derive(Debug, Default, PartialEq, Eq)]
+enum Mode {
+    #[default]
+    Normal,
+    Insert,
+    Quit,
+}
+
+#[derive(PartialEq)]
+enum Message {
+    MoveUp,
+    MoveDown,
+    Insert,
+    Quit,
+}
+
+#[derive(Debug, Default)]
+struct Model {
+    mode: Mode,
+    blocks: Vec<String>,
+    selected: usize,
+    input_value: String,
+}
+
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+    let mut term = tui::init_terminal()?;
+    let mut model = Model {
+        blocks: vec![String::from("Item 1"), String::from("Item 2")],
+        ..Default::default()
+    };
+
+    while model.mode != Mode::Quit {
+        term.draw(|frame| view(&mut model, frame))?;
+        let mut current_msg = handle_event(&model)?;
+        while current_msg.is_some() {
+            current_msg = update(&mut model, current_msg.unwrap());
+        }
+    }
+
+    tui::restore_terminal()?;
+    Ok(())
+}
+
+fn view(model: &mut Model, frame: &mut Frame) {
+    let root_layout = Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)]);
+    let content_layout = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]);
+    let [menu_area, main_area] = frame.area().layout(&root_layout);
+    let [title_area, blocks_area] = main_area.layout(&content_layout);
+
+    frame.render_widget(
+        Block::default().borders(Borders::all()),
+        menu_area.inner(Margin {
+            vertical: 1,
+            horizontal: 2,
+        }),
+    );
+
+    // let title_block = Block::default().borders(Borders::all());
+    let text = "Page Title".bold();
+    let size = text.width();
+    let title = Paragraph::new(text)/*.block(title_block)*/;
+    frame.render_widget(
+        title,
+        title_area.centered_horizontally(Constraint::Length(size as u16)),
+    );
+
+    // let content_block = Block::default().borders(Borders::all());
+    let items: Vec<ListItem> = model
+        .blocks
+        .iter()
+        .map(|item| ListItem::new(Span::from(item)))
+        .collect();
+
+    let mut list_state = ListState::default().with_selected(Some(model.selected));
+
+    let list = List::new(items)
+        .style(Color::White)
+        .highlight_style(Modifier::REVERSED)
+        /*.block(content_block)*/;
+
+    frame.render_stateful_widget(list, blocks_area, &mut list_state);
+}
+
+fn handle_event(_: &Model) -> color_eyre::Result<Option<Message>> {
+    if event::poll(Duration::from_millis(250))?
+        && let Event::Key(key) = event::read()?
+        && key.kind == event::KeyEventKind::Press
+    {
+        return Ok(handle_key(key));
+    }
+
+    Ok(None)
+}
+
+fn handle_key(key: event::KeyEvent) -> Option<Message> {
+    match key.code {
+        KeyCode::Char('j') => Some(Message::MoveDown),
+        KeyCode::Char('k') => Some(Message::MoveUp),
+        KeyCode::Char('q') => Some(Message::Quit),
+        KeyCode::Char('i') => Some(Message::Insert),
+        _ => None,
+    }
+}
+
+fn update(model: &mut Model, msg: Message) -> Option<Message> {
+    match msg {
+        Message::Quit => {
+            model.mode = Mode::Quit;
+            None
+        }
+
+        Message::MoveUp => {
+            if model.selected == 0 {
+                model.selected = model.blocks.len() - 1;
+                return None;
+            }
+
+            model.selected -= 1;
+            None
+        }
+
+        Message::MoveDown => {
+            if model.selected == model.blocks.len() - 1 {
+                model.selected = 0;
+                return None;
+            }
+
+            model.selected += 1;
+            None
+        }
+        Message::Insert => None,
+    }
+}
+
+mod tui {
+    use std::io::stdout;
+
+    use ratatui::{
+        Terminal,
+        backend::CrosstermBackend,
+        crossterm::{
+            ExecutableCommand,
+            terminal::{
+                EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+            },
+        },
+    };
+
+    pub fn init_terminal() -> color_eyre::Result<ratatui::DefaultTerminal> {
+        enable_raw_mode()?;
+        stdout().execute(EnterAlternateScreen)?;
+        let terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+        Ok(terminal)
+    }
+
+    pub fn restore_terminal() -> color_eyre::Result<()> {
+        stdout().execute(LeaveAlternateScreen)?;
+        disable_raw_mode()?;
+        Ok(())
+    }
+}
