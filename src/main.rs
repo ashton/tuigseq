@@ -36,6 +36,7 @@ enum Message {
     MoveUp,
     MoveDown,
     InsertAtTheEnd,
+    StopEditing,
     Quit,
 }
 
@@ -148,24 +149,31 @@ fn render_edit_mode(model: &Model, frame: &mut Frame) {
     frame.render_stateful_widget(list, blocks_area, &mut list_state);
 }
 
-fn handle_event(_: &Model) -> color_eyre::Result<Option<Message>> {
+fn handle_event(model: &Model) -> color_eyre::Result<Option<Message>> {
     if event::poll(Duration::from_millis(250))?
         && let Event::Key(key) = event::read()?
         && key.kind == event::KeyEventKind::Press
     {
-        return Ok(handle_key(key));
+        return Ok(handle_key(model, key));
     }
 
     Ok(None)
 }
 
-fn handle_key(key: event::KeyEvent) -> Option<Message> {
-    match key.code {
-        KeyCode::Char('j') => Some(Message::MoveDown),
-        KeyCode::Char('k') => Some(Message::MoveUp),
-        KeyCode::Char('q') => Some(Message::Quit),
-        KeyCode::Char('A') => Some(Message::InsertAtTheEnd),
-        _ => None,
+fn handle_key(model: &Model, key: event::KeyEvent) -> Option<Message> {
+    match model.mode {
+        Mode::Normal => match key.code {
+            KeyCode::Char('j') => Some(Message::MoveDown),
+            KeyCode::Char('k') => Some(Message::MoveUp),
+            KeyCode::Char('q') => Some(Message::Quit),
+            KeyCode::Char('A') => Some(Message::InsertAtTheEnd),
+            _ => None,
+        },
+        Mode::Editing(_) => match key.code {
+            KeyCode::Esc => Some(Message::StopEditing),
+            _ => None,
+        },
+        Mode::Quit => None,
     }
 }
 
@@ -199,6 +207,10 @@ fn update(model: &mut Model, msg: Message) -> Option<Message> {
             model.mode = Mode::Editing(EditData {
                 position: CursorPosition::End,
             });
+            None
+        }
+        Message::StopEditing => {
+            model.mode = Mode::Normal;
             None
         }
     }
