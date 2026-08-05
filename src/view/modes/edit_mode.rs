@@ -7,9 +7,10 @@ use ratatui::{
 };
 use tui_widget_list::{ListBuilder, ListView};
 
-use crate::model::{EditData, Model};
-use crate::view::ItemWidget;
-use crate::view::TextInputWidget;
+use crate::{
+    model::{EditData, Model},
+    view::widgets::{list_item::ListItemWidget, text_input::TextInputWidget},
+};
 
 pub fn render(model: &Model, edit_data: &EditData, frame: &mut Frame) {
     let root_layout = Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)]);
@@ -35,7 +36,7 @@ pub fn render(model: &Model, edit_data: &EditData, frame: &mut Frame) {
                 text: &edit_data.text,
                 cursor: edit_data.cursor,
             };
-            return (ItemWidget::Edit(widget), 3);
+            return (ListItemWidget::Edit(widget), 3);
         }
 
         let line = Line::from(vec![
@@ -43,7 +44,7 @@ pub fn render(model: &Model, edit_data: &EditData, frame: &mut Frame) {
             " ".into(),
             Span::from(model.blocks[context.index].clone()),
         ]);
-        (ItemWidget::Text(line), 1)
+        (ListItemWidget::Text(line), 1)
     });
 
     let list_view = ListView::new(builder, model.blocks.len()).block(content_block);
