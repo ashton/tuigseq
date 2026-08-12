@@ -9,7 +9,7 @@ use tui_widget_list::{ListBuilder, ListView};
 
 use crate::{
     model::{EditData, Model},
-    view::widgets::{list_item::ListItemWidget, text_input::TextInputWidget},
+    widgets::{list_item::ListItemWidget, text_input::TextInputWidget},
 };
 
 pub fn render(model: &Model, edit_data: &EditData, frame: &mut Frame) {

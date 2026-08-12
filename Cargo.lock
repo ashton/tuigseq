@@ -1176,15 +1176,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
-name = "rooted"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "ratatui",
- "tui-widget-list",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1596,6 +1587,15 @@ checksum = "39fc4e2d4f0673ad55213e1db3203b2f5962d8e99acbc54faa59318c435b010a"
 dependencies = [
  "ratatui-core",
  "ratatui-widgets",
+]
+
+[[package]]
+name = "tuigseq"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "ratatui",
+ "tui-widget-list",
 ]
 
 [[package]]

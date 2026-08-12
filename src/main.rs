@@ -1,9 +1,9 @@
 mod input;
 mod model;
+mod modes;
 mod msg;
 mod tui;
-mod update;
-mod view;
+mod widgets;
 
 use crate::model::Model;
 
@@ -17,10 +17,10 @@ fn main() -> color_eyre::Result<()> {
     };
 
     while model.running {
-        term.draw(|frame| view::view(&model, frame))?;
+        term.draw(|frame| modes::view(&model, frame))?;
         let mut current_msg = input::handle_event(&model)?;
         while current_msg.is_some() {
-            current_msg = update::update(&mut model, current_msg.unwrap());
+            current_msg = modes::update(&mut model, current_msg.unwrap());
         }
     }
 

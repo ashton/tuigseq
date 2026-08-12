@@ -1,4 +1,4 @@
-use crate::view::widgets::text_input::TextInputWidget;
+use crate::widgets::text_input::TextInputWidget;
 use ratatui::{buffer::Buffer, layout::Rect, text::Line, widgets::Widget};
 
 pub enum ListItemWidget<'a> {
